@@ -1,0 +1,17 @@
+Shop,Camera,Year,Month,Day,track_id,gender,age,baseline,datetime,staytime
+Taiwan,cam002,2024,10,28,0,Male,0.0,stay_region3,2024-10-28 09:00:00,256
+Taiwan,cam002,2024,10,28,3041,Female,0.0,stay_region3,2024-10-28 09:50:58,0
+Taiwan,cam002,2024,10,28,1890,Male,0.0,stay_region3,2024-10-28 09:39:52,0
+Taiwan,cam002,2024,10,28,359,Male,1.0,stay_region3,2024-10-28 09:21:17,6
+Taiwan,cam002,2024,10,28,2858,Male,1.0,stay_region3,2024-10-28 09:49:20,6
+Taiwan,cam002,2024,10,28,367,Male,2.0,stay_region3,2024-10-28 09:11:25,6
+Taiwan,cam002,2024,10,28,3888,Male,0.0,stay_region3,2024-10-28 09:59:00,1
+Taiwan,cam002,2024,10,28,3006,Male,0.0,stay_region3,2024-10-28 09:50:35,0
+Taiwan,cam002,2024,10,28,3028,Male,0.0,stay_region3,2024-10-28 09:50:53,0
+Taiwan,cam002,2024,10,28,3892,Male,1.0,stay_region3,2024-10-28 09:58:36,25
+Taiwan,cam002,2024,10,28,24,Female,1.0,stay_region3,2024-10-28 09:55:06,4
+Taiwan,cam002,2024,10,28,218,Male,1.0,stay_region3,2024-10-28 09:01:59,4
+Taiwan,cam002,2024,10,28,2427,Male,1.0,stay_region3,2024-10-28 09:47:02,0
+Taiwan,cam002,2024,10,28,28,Male,1.0,stay_region3,2024-10-28 09:00:02,0
+Taiwan,cam002,2024,10,28,2238,Male,0.0,stay_region3,2024-10-28 09:45:41,0
+Taiwan,cam002,2024,10,28,2239,Male,0.0,stay_region3,2024-10-28 09:45:41,0
