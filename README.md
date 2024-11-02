@@ -1,0 +1,1 @@
+# nexretail_camera_process_script
