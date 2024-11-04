@@ -1,0 +1,5 @@
+track_id,gender,age,solution,direction,group,group_head_count,datetime,Camera,Shop
+173,Male,1.0,entrance_shop,1.0,0,1,2024-11-01 09:01:11,cam002,Taiwan
+497,Male,2.0,entrance_shop,1.0,1,1,2024-11-01 09:11:28,cam002,Taiwan
+830,Male,0.0,entrance_shop,1.0,2,1,2024-11-01 09:21:24,cam002,Taiwan
+950,Male,2.0,entrance_shop,1.0,3,1,2024-11-01 09:25:36,cam002,Taiwan

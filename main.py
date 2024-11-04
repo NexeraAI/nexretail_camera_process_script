@@ -22,11 +22,11 @@ print("text file path: " + txt_file_path)
 
 df_txt = pd.read_csv(txt_file_path, delim_whitespace=True)
 
-# print("First three rows of cam002.txt content:")
-# print(df_txt.head(3))
-# print("Number of rows:", df_txt.shape[0])
-# print("Distinct IDs:", df_txt['id'].unique())
-# print("Distinct IDs count:", df_txt['id'].nunique())
+print("First three rows of cam002.txt content:")
+print(df_txt.head(3))
+print("Number of rows:", df_txt.shape[0])
+print("Distinct IDs:", df_txt['id'].unique())
+print("Distinct IDs count:", df_txt['id'].nunique())
 
 camera_number = int(camera[3:])
 modified_camera = f"cam_{camera_number}"
