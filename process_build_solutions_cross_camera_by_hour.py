@@ -30,6 +30,13 @@ SOLUTION = {
     20: "Negotiation_table_11",
     21: "SIENTA",
 }
+AGE_MAP = {
+    0: "0-15",
+    1: "16-30",
+    2: "31-45",
+    3: "46-60",
+    4: "61-"
+}
 
 entrance = [1]
 region_car = [4, 5, 7, 11, 12, 13, 17, 18, 21]
@@ -62,6 +69,8 @@ for camera in CAMERA:
         if os.path.exists(csv_path):
             print("find csv_path:", csv_path)
             df = pd.read_csv(csv_path)
+
+            df['age'] = df['age'].map(AGE_MAP)
 
             print("\n")
             print("------------------------")

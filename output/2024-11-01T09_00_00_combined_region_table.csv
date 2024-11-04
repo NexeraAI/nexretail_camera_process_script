@@ -1,10 +1,10 @@
 track_id,gender,age,solution,staytime,datetime,Camera,Shop
-6,Male,2.0,Negotiation_table_11,75,2024-11-01 09:00:23,cam006,Taiwan
-228,Male,1.0,Negotiation_table_1,21,2024-11-01 09:17:44,cam002,Taiwan
-228,Male,1.0,Negotiation_table_11,159,2024-11-01 09:15:08,cam006,Taiwan
-516,Male,1.0,Negotiation_table_8,4,2024-11-01 09:12:16,cam005,Taiwan
-950,Male,2.0,Negotiation_table_1,14,2024-11-01 09:26:53,cam002,Taiwan
-950,Male,2.0,Negotiation_table_4,1192,2024-11-01 09:27:08,cam004,Taiwan
-1044,Female,1.0,Negotiation_table_1,26,2024-11-01 09:28:54,cam002,Taiwan
-1044,Female,1.0,Negotiation_table_2,83,2024-11-01 09:27:54,cam002,Taiwan
-1290,Female,1.0,Negotiation_table_4,556,2024-11-01 09:33:04,cam004,Taiwan
+6,Male,31-45,Negotiation_table_11,75,2024-11-01 09:00:23,cam006,Taiwan
+228,Male,16-30,Negotiation_table_1,21,2024-11-01 09:17:44,cam002,Taiwan
+228,Male,16-30,Negotiation_table_11,159,2024-11-01 09:15:08,cam006,Taiwan
+516,Male,16-30,Negotiation_table_8,4,2024-11-01 09:12:16,cam005,Taiwan
+950,Male,31-45,Negotiation_table_1,14,2024-11-01 09:26:53,cam002,Taiwan
+950,Male,31-45,Negotiation_table_4,1192,2024-11-01 09:27:08,cam004,Taiwan
+1044,Female,16-30,Negotiation_table_1,26,2024-11-01 09:28:54,cam002,Taiwan
+1044,Female,16-30,Negotiation_table_2,83,2024-11-01 09:27:54,cam002,Taiwan
+1290,Female,16-30,Negotiation_table_4,556,2024-11-01 09:33:04,cam004,Taiwan
