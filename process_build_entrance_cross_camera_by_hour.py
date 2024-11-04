@@ -76,7 +76,7 @@ if dfs:
     
     combined_df['group_head_count'] = combined_df.groupby('group')['group'].transform('size')
     combined_df['group_gender'] = combined_df.groupby('group')['gender'].transform(lambda x: ', '.join(x))
-    df['group_with_youth'] = df.groupby('group')['age'].transform(lambda x: 'Y' if '0-15' in x.values else 'N')
+    combined_df['group_with_youth'] = combined_df.groupby('group')['age'].transform(lambda x: 'Y' if '0-15' in x.values else 'N')
 
     column_order = ['track_id', 'gender', 'age', 'solution', 'direction', 'group', 'group_head_count', 'group_with_youth', 'datetime', 'Camera', 'Shop']
     combined_df = combined_df[column_order]
