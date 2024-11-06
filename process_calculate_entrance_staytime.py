@@ -1,8 +1,8 @@
 import pandas as pd
 
 # Read the CSV files
-df_entrance = pd.read_csv("output/2024-11-01T09_00_00_combined_entrance.csv")
-df_combined_text = pd.read_csv("output/2024-11-01T09_00_00_combined_text.csv")
+df_entrance = pd.read_csv("output/2024-11-02/2024-11-02_combined_entrance.csv")
+df_combined_text = pd.read_csv("output/2024-11-02/2024-11-02_combined_text.csv")
 
 print("\n")
 print("------------------------")
@@ -27,6 +27,6 @@ print(df_staytime)
 staytime_df = df_staytime.rename(columns={'id': 'track_id'})
 entrance_df = df_entrance.merge(staytime_df, on='track_id', how='left')
 
-entrance_df.to_csv("output/entrance_with_staytime.csv", index=False)
+entrance_df.to_csv("output/2024-11-02/2024-11-02_entrance_with_staytime.csv", index=False)
 
 print("Updated entrance.csv with staytime saved as entrance_with_staytime.csv")

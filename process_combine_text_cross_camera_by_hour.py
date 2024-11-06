@@ -1,7 +1,9 @@
 import pandas as pd
 import os
 
-base_time_stamp = "2024-11-01T09_00_00"
+date_stamp = "2024-11-02"
+time_stamp = "20_00_00"
+base_time_stamp = date_stamp + "T" + time_stamp
 
 CAMERA = ["cam002", "cam003", "cam004", "cam005", "cam006"]
 
@@ -41,7 +43,7 @@ AGE_MAP = {
     4: "61-"
 }
 
-base_directory = os.path.join("csv", base_time_stamp)
+base_directory = os.path.join("csv", date_stamp, base_time_stamp)
 print("base_directory: " + base_directory)
 
 dfs_text = []
@@ -84,7 +86,7 @@ print("Total number of rows:", df_combined_text.shape[0])
 print("Distinct IDs count across all cameras:", df_combined_text['id'].nunique())
 print("------------------------------------------------")
 
-output_file_path = os.path.join("output", f"{base_time_stamp}_combined_text.csv")
+output_file_path = os.path.join("output", date_stamp, f"{base_time_stamp}_combined_text.csv")
 df_combined_text.to_csv(output_file_path, index=False)
 
 print(f"\nCombined DataFrame saved to: {output_file_path}")

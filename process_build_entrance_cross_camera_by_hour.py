@@ -1,7 +1,9 @@
 import pandas as pd
 import os
 
-base_time_stamp = "2024-11-01T09_00_00"
+date_stamp = "2024-11-02"
+time_stamp = "19_00_00"
+base_time_stamp = date_stamp + "T" + time_stamp
 selected_solution_name = "entrance"
 
 CAMERA = ["cam002", "cam003", "cam004", "cam005", "cam006"]\
@@ -29,6 +31,13 @@ SOLUTION = {
     20: "Negotiation_table_11",
     21: "SIENTA",
 }
+AGE_MAP = {
+    0: "0-15",
+    1: "16-30",
+    2: "31-45",
+    3: "46-60",
+    4: "61-"
+}
 
 entrance = [1]
 
@@ -38,7 +47,7 @@ solution_sets = {
 
 selected_set = solution_sets[selected_solution_name]
 
-base_directory = os.path.join("csv", base_time_stamp)
+base_directory = os.path.join("csv", date_stamp, base_time_stamp)
 print("base_directory: " + base_directory)
 
 dfs = []
@@ -57,6 +66,8 @@ for camera in CAMERA:
         if os.path.exists(csv_path):
             print("find csv_path:", csv_path)
             df = pd.read_csv(csv_path)
+
+            df['age'] = df['age'].map(AGE_MAP)
 
             print("\n")
             print("------------------------")
@@ -78,7 +89,7 @@ if dfs:
     combined_df['group_gender'] = combined_df.groupby('group')['gender'].transform(lambda x: ', '.join(x))
     combined_df['group_with_youth'] = combined_df.groupby('group')['age'].transform(lambda x: 'Y' if '0-15' in x.values else 'N')
 
-    column_order = ['track_id', 'gender', 'age', 'solution', 'direction', 'group', 'group_head_count', 'group_with_youth', 'datetime', 'Camera', 'Shop']
+    column_order = ['track_id', 'gender', 'age', 'solution', 'direction', 'group', 'group_head_count', 'group_with_youth', 'datetime', 'Camera', 'Shop' , 'img_path']
     combined_df = combined_df[column_order]
 
     # Display and save the combined DataFrame
@@ -91,7 +102,7 @@ if dfs:
     # Save the combined DataFrame to a CSV file
     output_directory = "output"
     os.makedirs(output_directory, exist_ok=True)
-    output_file_path = os.path.join(output_directory, f"{base_time_stamp}_combined_{selected_solution_name}.csv")
+    output_file_path = os.path.join(output_directory, date_stamp, f"{base_time_stamp}_combined_{selected_solution_name}.csv")
     combined_df.to_csv(output_file_path, index=False)
 
     print(f"\nCombined DataFrame for {selected_solution_name} saved to: {output_file_path}")

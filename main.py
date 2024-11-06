@@ -1,96 +1,109 @@
-import pandas as pd
 import os
+import pandas as pd
 
-SOLUTION = {
-    1: "car_near_door",
-    2: "desk_near_door",
-    3: "desk_near_first_car",
-    4: "entrance_shop",
-}
+from processor.camera_data_processor import CameraDataProcessor
 
-base_time_stamp = "2024-10-28T09_00_00"
-camera = "cam002"
+date_stamp = "2024-11-02"
 
-solution_data = {}
+start_time = 9
+end_time = 20
 
-base_directory = os.path.join("csv", base_time_stamp)
-print("base_directory: " + base_directory)
+if __name__ == "__main__":
 
-txt_file_path = os.path.join(base_directory, f"{camera}.txt")
+    dfs_base_text = []
+    dfs_entrance = []
+    dfs_region_car = []
+    dfs_region_table = []
 
-print("text file path: " + txt_file_path)
+    for hour in range(start_time, end_time + 1):
+        print("------------------------------------------------")
+        hour_str = f"{hour:02d}_00_00"
+        base_time_stamp = date_stamp + "T" + hour_str
+        base_directory = os.path.join("csv", date_stamp, base_time_stamp)
 
-df_txt = pd.read_csv(txt_file_path, delim_whitespace=True)
+        processor_base_text = CameraDataProcessor(base_directory, base_time_stamp, processor_type="base_text")
+        dfs_base_text.append(processor_base_text.process())
 
-print("First three rows of cam002.txt content:")
-print(df_txt.head(3))
-print("Number of rows:", df_txt.shape[0])
-print("Distinct IDs:", df_txt['id'].unique())
-print("Distinct IDs count:", df_txt['id'].nunique())
+        processor_entrance = CameraDataProcessor(base_directory, base_time_stamp, processor_type="entrance")
+        dfs_entrance.append(processor_entrance.process())
 
-camera_number = int(camera[3:])
-modified_camera = f"cam_{camera_number}"
+        processor_region_car = CameraDataProcessor(base_directory, base_time_stamp, processor_type="region_car")
+        dfs_region_car.append(processor_region_car.process())
 
-for key, solution in SOLUTION.items():
-    csv_filename = f"{modified_camera}_{solution}_{base_time_stamp}.csv"
-    csv_path = os.path.join(base_directory, camera, csv_filename)
-    print("----------------------------------------------")
-    print("csv_path: " + csv_path)
+        processor_region_table = CameraDataProcessor(base_directory, base_time_stamp, processor_type="region_table")
+        dfs_region_table.append(processor_region_table.process())
 
-    if os.path.exists(csv_path):
-        df = pd.read_csv(csv_path)
-        print(f"\nFirst three rows of {csv_filename}:")
-        print(df.head(3))
-        print("Number of rows:", df.shape[0])
-        print("Distinct IDs:", df['track_id'].unique())
-        print("Distinct IDs count:", df['track_id'].nunique())
+    output_directory = os.path.join("output", date_stamp)
+    os.makedirs(output_directory, exist_ok=True)
 
-        solution_data[f"{solution}"] = df
-    else:
-        print(f"{csv_filename} does not exist.")
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+        print(f"Directory {output_directory} created.")
+        
+    if dfs_base_text:
+        df_base_text = pd.concat(dfs_base_text, ignore_index=True)
 
-df_object_list = (
-    df_txt.groupby("id")
-    .agg(
-        object_id=("id", "first"),                          # 使用不重複的id為主鍵
-        face_id=("face_id", "first"),                       # 使用第一個face id
-        datetime=("id", lambda x: base_time_stamp),                           # 使用base_time_stamp
-        first_show_time=("frame_idx", "min"),               # 最小的frame_idx為入場時間
-        last_show_time=("frame_idx", "max"),                # 最大的frame_idx為出場時間
-        age=("age", lambda x: x.mode()[0]),                 # age取眾數
-        gender=("gender", lambda x: x.mode()[0])            # gender取眾數
-    )
-    .reset_index(drop=True)
-)
-print("----------------------------------------------")
-print("df_object_list: ")
-print(df_object_list.head(10))
+        print("\n")
+        print("------------------------------------------------")
+        print("Combined DataFrame:")
+        print(df_base_text.head(3))
+        print("Total number of rows:", df_base_text.shape[0])
 
-processed_dfs = []
+        output_file_path = os.path.join(output_directory, f"{base_time_stamp}_combined_text.csv")
+        df_base_text.to_csv(output_file_path, index=False)
 
-for solution_type, df in solution_data.items():
-    df['solution_type'] = solution_type
+        print(f"\nCombined DataFrame saved to: {output_file_path}")
     
-    if 'staytime' in df.columns:
-        df['property'] = df['staytime']
-    elif 'direction' in df.columns:
-        df['property'] = df['direction']
-    
-    processed_dfs.append(df[['track_id', 'datetime', 'baseline', 'solution_type', 'property']])
+    if dfs_entrance:
+        df_entrance = pd.concat(dfs_entrance, ignore_index=True)
 
-df_solution = pd.concat(processed_dfs, ignore_index=True)
-df_solution.sort_values(by='track_id', inplace=True)
-print("----------------------------------------------")
-print("Number of rows:", df_solution.shape[0])
-print("Distinct IDs:", df_solution['track_id'].unique())
-print("Distinct IDs count:", df_solution['track_id'].nunique())
-print("df_solution(sort by id): ")
-print(df_solution)
+        df_filtered = df_base_text[df_base_text['id'].isin(df_entrance['track_id'])]
 
-df_solution.sort_values(by=['solution_type', 'track_id'], inplace=True)
-print("----------------------------------------------")
-print("df_solution(sort by solution_type): ")
-print(df_solution)
-print("Number of rows:", df_solution.shape[0])
-print("Distinct IDs:", df_solution['track_id'].unique())
-print("Distinct IDs count:", df_solution['track_id'].nunique())
+        df_staytime = (
+            df_filtered.groupby('id')['frame_idx']
+            .agg(staytime=lambda x: f"{int((x.max() - x.min())/10 // 60)} min {int((x.max() - x.min())/10 % 60)} sec")
+            .reset_index()
+        )
+
+        staytime_df = df_staytime.rename(columns={'id': 'track_id'})
+        df_entrance_with_staytime = df_entrance.merge(staytime_df, on='track_id', how='left')
+
+        print("\n")
+        print("------------------------------------------------")
+        print("Combined DataFrame:")
+        print(df_entrance_with_staytime.head(3))
+        print("Total number of rows:", df_entrance_with_staytime.shape[0])
+
+        output_file_path = os.path.join(output_directory, f"{base_time_stamp}_combined_entrance.csv")
+        df_entrance_with_staytime.to_csv(output_file_path, index=False)
+
+        print(f"\nCombined DataFrame for entrance saved to: {output_file_path}")
+
+    if dfs_region_car:
+        df_region_car = pd.concat(dfs_region_car, ignore_index=True)
+
+        print("\n")
+        print("------------------------------------------------")
+        print("Combined DataFrame:")
+        print(df_region_car.head(3))
+        print("Total number of rows:", df_region_car.shape[0])
+
+        output_file_path = os.path.join(output_directory, f"{base_time_stamp}_combined_region_car.csv")
+        df_region_car.to_csv(output_file_path, index=False)
+
+        print(f"\nCombined DataFrame for region car saved to: {output_file_path}")
+
+    if dfs_region_table:
+        df_region_table = pd.concat(dfs_region_table, ignore_index=True)
+
+        print("\n")
+        print("------------------------------------------------")
+        print("Combined DataFrame:")
+        print(df_region_table.head(3))
+        print("Total number of rows:", df_region_table.shape[0])
+
+        output_file_path = os.path.join(output_directory, f"{base_time_stamp}_combined_region_table.csv")
+        df_region_table.to_csv(output_file_path, index=False)
+
+        print(f"\nCombined DataFrame for region table saved to: {output_file_path}")
+        

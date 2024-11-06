@@ -1,7 +1,9 @@
 import pandas as pd
 import os
 
-base_time_stamp = "2024-11-01T09_00_00"
+date_stamp = "2024-11-02"
+time_stamp = "09_00_00"
+base_time_stamp = date_stamp + "T" + time_stamp
 # 選擇建立的solution, 選項： region_car, region_table
 selected_solution_name = "region_table"
 
@@ -50,7 +52,7 @@ solution_sets = {
 
 selected_set = solution_sets[selected_solution_name]
 
-base_directory = os.path.join("csv", base_time_stamp)
+base_directory = os.path.join("csv", date_stamp, base_time_stamp)
 print("base_directory: " + base_directory)
 
 dfs = []
@@ -101,7 +103,7 @@ if dfs:
     # Save the combined DataFrame to a CSV file
     output_directory = "output"
     os.makedirs(output_directory, exist_ok=True)
-    output_file_path = os.path.join(output_directory, f"{base_time_stamp}_combined_{selected_solution_name}.csv")
+    output_file_path = os.path.join(output_directory, date_stamp, f"{base_time_stamp}_combined_{selected_solution_name}.csv")
     combined_df.to_csv(output_file_path, index=False)
 
     print(f"\nCombined DataFrame for {selected_solution_name} saved to: {output_file_path}")
