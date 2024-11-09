@@ -349,10 +349,13 @@ class CameraDataProcessor:
             print(self.df.head(3))
             print("\nTotal number of rows:", self.df.shape[0])
 
-            output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}.csv")
-            self.df.to_csv(output_file_path, index=False)
+            if self.processor_type == "base_text":
+                pass
+            else:
+                output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}.csv")
+                self.df.to_csv(output_file_path, index=False)
 
-            print(f"Combined DataFrame saved to: {output_file_path}")
+                print(f"Combined DataFrame saved to: {output_file_path}")
             
             if self.processor_type == "base_text":
                 print("\n------------------------------------------------")
@@ -373,8 +376,8 @@ class CameraDataProcessor:
                 print(self.df_object_reference.head(3))
                 print("\nTotal number of rows:", self.df_object_reference.shape[0])
 
-                output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}_object_reference.csv")
-                self.df_object_reference.to_csv(output_file_path, index=False)
+                # output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}_object_reference.csv")
+                # self.df_object_reference.to_csv(output_file_path, index=False)
                 
             return True
     
