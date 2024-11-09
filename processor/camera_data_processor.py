@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import os
 import pandas as pd
 
@@ -11,6 +12,12 @@ solution_sets = {
     "entrance": entrance,
     "region_car": region_car,
     "region_table": region_table
+}
+
+solution_data_processor = {
+    "entrance": [],
+    "region_car": [],
+    "region_table": []
 }
 
 SOLUTION = {
@@ -50,19 +57,37 @@ AGE_MAP = {
 }
 
 class CameraDataProcessor:
-    def __init__(self, base_directory, base_time_stamp, processor_type="default"):
+    def __init__(self, base_directory, base_day_stamp, processor_type="default", start_time = 9, end_time = 20, output_base_direction = "output"):
         self.base_directory = base_directory
-        self.base_time_stamp = base_time_stamp
+        self.file_directory = ""
+
+        self.base_day_stamp = base_day_stamp
+        self.base_time_stamp = ""
+        self.current_time = ""
+
         self.processor_type = processor_type
+        
+        self.start_time = start_time
+        self.end_time = end_time 
+        
         self.df = None
+        self.df_object = None
+        self.df_object_reference = None
+        
+        self.output_directory = os.path.join(output_base_direction, self.base_day_stamp)
+        os.makedirs(self.output_directory, exist_ok=True)
+
+        if not os.path.exists(self.output_directory):
+            os.makedirs(self.output_directory)
+            print(f"Directory {self.output_directory} created.")
         
         print(self.base_directory + " processing " + self.processor_type)
 
-    def process_base_text(self):
+    def hourly_process_base_text(self):
         dfs_text = []
 
         for camera in CAMERA:
-            txt_file_path = os.path.join(self.base_directory, f"{camera}.txt")
+            txt_file_path = os.path.join(self.file_directory, f"{camera}.txt")
 
             df_txt = pd.read_csv(txt_file_path, sep='\s+')
             df_txt = df_txt.sort_values(by=['id', 'frame_idx']).reset_index(drop=True)
@@ -71,14 +96,17 @@ class CameraDataProcessor:
             df_txt.insert(df_txt.columns.get_loc('id'), 'camera', camera)
 
             # Apply mappings to the 'gender' and 'age' columns
-            df_txt['gender'] = df_txt['gender'].map(GENDER_MAP)
-            df_txt['age'] = df_txt['age'].map(AGE_MAP)
+            # df_txt['gender'] = df_txt['gender'].map(GENDER_MAP)
+            # df_txt['age'] = df_txt['age'].map(AGE_MAP)
 
             # Append the DataFrame to the list
             dfs_text.append(df_txt)
 
         # Combine all DataFrames
         self.df = pd.concat(dfs_text, ignore_index=True).sort_values(by=['id', 'camera', 'frame_idx']).reset_index(drop=True)
+        self.df['datetime'] = self.df.apply(
+            lambda row: self.current_time + timedelta(seconds=row['frame_idx'] / 10), axis=1
+        )
 
         # print("\n")
         # print("------------------------------------------------")
@@ -89,7 +117,7 @@ class CameraDataProcessor:
         # print("Distinct IDs count across all cameras:", self.df['id'].nunique())
         # print("------------------------------------------------")
 
-    def process_entrance(self):
+    def hourly_process_entrance(self):
         dfs = []
 
         for camera in CAMERA:
@@ -99,13 +127,16 @@ class CameraDataProcessor:
             for solution_id in solution_sets["entrance"]:
                 solution_name = SOLUTION[solution_id]
                 csv_filename = f"{modified_camera}_{solution_name}_{self.base_time_stamp}.csv"
-                csv_path = os.path.join(self.base_directory, camera, csv_filename)
+                csv_path = os.path.join(self.file_directory, camera, csv_filename)
 
                 # Check if the file exists before attempting to read it
                 if os.path.exists(csv_path):
                     df = pd.read_csv(csv_path)
 
-                    df['age'] = df['age'].map(AGE_MAP)
+                    # df['age'] = df['age'].map(AGE_MAP)
+                    df['group'] = self.base_time_stamp + '_' + df['group'].astype(str)
+                    df['age'] = df['track_id'].map(self.df_object_reference.set_index('id')['age'])
+                    df['gender'] = df['track_id'].map(self.df_object_reference.set_index('id')['gender'])
 
                     dfs.append(df)
         if dfs:
@@ -113,13 +144,6 @@ class CameraDataProcessor:
 
             if 'baseline' in self.df.columns:
                 self.df = self.df.rename(columns={'baseline': 'solution'})
-            
-            self.df['group_head_count'] = self.df.groupby('group')['group'].transform('size')
-            self.df['group_gender'] = self.df.groupby('group')['gender'].transform(lambda x: ', '.join(x))
-            self.df['group_with_youth'] = self.df.groupby('group')['age'].transform(lambda x: 'Y' if '0-15' in x.values else 'N')
-
-            column_order = ['track_id', 'gender', 'age', 'solution', 'direction', 'group', 'group_head_count', 'group_with_youth', 'datetime', 'Camera', 'Shop' , 'img_path']
-            self.df = self.df[column_order]
 
             # Display and save the combined DataFrame
             # print("\n")
@@ -128,7 +152,7 @@ class CameraDataProcessor:
             # print(self.df.head(3))
             # print("Total number of rows:", self.df.shape[0])
 
-    def process_region_car(self):
+    def hourly_process_region_car(self):
         dfs = []
 
         for camera in CAMERA:
@@ -138,13 +162,15 @@ class CameraDataProcessor:
             for solution_id in solution_sets["region_car"]:
                 solution_name = SOLUTION[solution_id]
                 csv_filename = f"{modified_camera}_{solution_name}_{self.base_time_stamp}.csv"
-                csv_path = os.path.join(self.base_directory, camera, csv_filename)
+                csv_path = os.path.join(self.file_directory, camera, csv_filename)
 
                 # Check if the file exists before attempting to read it
                 if os.path.exists(csv_path):
                     df = pd.read_csv(csv_path)
 
-                    df['age'] = df['age'].map(AGE_MAP)
+                    # df['age'] = df['age'].map(AGE_MAP)
+                    df['age'] = df['track_id'].map(self.df_object_reference.set_index('id')['age'])
+                    df['gender'] = df['track_id'].map(self.df_object_reference.set_index('id')['gender'])
 
                     # print("\n")
                     # print("------------------------")
@@ -172,7 +198,7 @@ class CameraDataProcessor:
             # print(self.df.head(3))
             # print("Total number of rows:", self.df.shape[0])
 
-    def process_region_table(self):
+    def hourly_process_region_table(self):
         dfs = []
 
         for camera in CAMERA:
@@ -182,13 +208,15 @@ class CameraDataProcessor:
             for solution_id in solution_sets["region_table"]:
                 solution_name = SOLUTION[solution_id]
                 csv_filename = f"{modified_camera}_{solution_name}_{self.base_time_stamp}.csv"
-                csv_path = os.path.join(self.base_directory, camera, csv_filename)
+                csv_path = os.path.join(self.file_directory, camera, csv_filename)
 
                 # Check if the file exists before attempting to read it
                 if os.path.exists(csv_path):
                     df = pd.read_csv(csv_path)
 
-                    df['age'] = df['age'].map(AGE_MAP)
+                    # df['age'] = df['age'].map(AGE_MAP)
+                    df['age'] = df['track_id'].map(self.df_object_reference.set_index('id')['age'])
+                    df['gender'] = df['track_id'].map(self.df_object_reference.set_index('id')['gender'])
 
                     # print("\n")
                     # print("------------------------")
@@ -216,14 +244,149 @@ class CameraDataProcessor:
             # print(self.df.head(3))
             # print("Total number of rows:", self.df.shape[0])
 
-    def process(self):
+    def hourly_process(self):
+        """
+        combine data from multiple camera and create a hourly dataset
+        """
         if self.processor_type == "base_text":
-            self.process_base_text()
+            self.hourly_process_base_text()
         if self.processor_type == "entrance":
-            self.process_entrance()
+            self.hourly_process_entrance()
         if self.processor_type == "region_car":
-            self.process_region_car()
+            self.hourly_process_region_car()
         if self.processor_type == "region_table":
-            self.process_region_table()
+            self.hourly_process_region_table()
         
         return self.df
+    
+    def daily_process(self):
+        """
+        combine data from multiple camera and create a daily dataset and apply filters
+        """
+        list_dfs = []
+        for hour in range(self.start_time, self.end_time + 1):
+            hour_str = f"{hour:02d}_00_00"
+            self.base_time_stamp = self.base_day_stamp + "T" + hour_str
+            self.current_time = datetime.strptime(self.base_day_stamp, "%Y-%m-%d").replace(hour=hour)
+            self.file_directory = os.path.join(self.base_directory, self.base_time_stamp)
+
+            list_dfs.append(self.hourly_process())
+        
+        if list_dfs:
+            self.df = pd.concat(list_dfs, ignore_index=True)
+
+            if self.processor_type == "entrance":
+            #     if 'baseline' in self.df.columns:
+            #         self.df = self.df.rename(columns={'baseline': 'solution'})
+                
+            #     self.df['group_head_count'] = self.df.groupby('group')['group'].transform('size')
+            #     self.df['group_gender'] = self.df.groupby('group')['gender'].transform(lambda x: ', '.join(x))
+            #     self.df['group_with_youth'] = self.df.groupby('group')['age'].transform(lambda x: 'Y' if '0-15' in x.values else 'N')
+
+                # calculate staytime
+                self.df_object = self.df_object[self.df_object['id'].isin(self.df['track_id'])]
+
+                self.df['staytime'] = ''
+
+                end_of_day = datetime.strptime(self.base_day_stamp, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+                rows_to_remove = []
+
+                for track_id, group in self.df.groupby('track_id'):
+                    for _, row in group.iterrows():
+                        start_time = row['datetime']
+                        next_index = group.index.get_loc(row.name) + 1
+                        if next_index < len(group):
+                            end_time = group.iloc[next_index]['datetime']
+                        else:
+                            end_time = end_of_day
+
+                        filtered_df = self.df_object[(self.df_object['id'] == track_id) & (self.df_object['datetime'] >= start_time) & (self.df_object['datetime'] <= end_time)]
+                        
+                        max_datetime = filtered_df['datetime'].max() if not filtered_df.empty else None
+                        min_datetime = filtered_df['datetime'].min() if not filtered_df.empty else None
+
+                        if max_datetime and min_datetime:
+                            time_difference = max_datetime - min_datetime
+                            if time_difference < timedelta(minutes=5):
+                                rows_to_remove.append(row.name)
+                                continue
+
+                            hours = time_difference.seconds // 3600
+                            minutes = (time_difference.seconds % 3600) // 60
+                            seconds = time_difference.seconds % 60
+                            formatted_time_difference = f"{hours:02}:{minutes:02}:{seconds:02}"
+
+                            self.df.at[row.name, 'staytime'] = formatted_time_difference
+
+                self.df.drop(index=rows_to_remove, inplace=True)
+
+                self.df['second_show'] = ''
+                mask = (self.df.groupby('track_id')['track_id'].transform('size') > 1) & (self.df.groupby('track_id').cumcount() != 0)
+                self.df.loc[mask, 'second_show'] = 'Y'
+
+                self.df['group_head_count'] = self.df.groupby('group')['group'].transform('size')
+                # self.df['track_id_count'] = self.df.groupby('track_id')['track_id'].transform('size')
+                self.df['group_gender'] = self.df.groupby('group')['gender'].transform(lambda x: ', '.join(x))
+                self.df['group_with_youth'] = self.df.groupby('group')['age'].transform(lambda x: 'Y' if '0-15' in x.values else 'N')
+                # self.df['is_group'] = self.df.groupby('group').cumcount().apply(lambda x: 'Y' if x == 0 else '')
+                self.df['is_group'] = self.df.groupby('group').cumcount().apply(
+                    lambda x: 'Y' if x == 0 and self.df.loc[x, 'group_head_count'] > 1 else ''
+                )
+                self.df['is_group'] = ''
+                self.df.loc[self.df.groupby('group').head(1).index, 'is_group'] = \
+                    self.df.groupby('group')['group'].transform('size').gt(1).map({True: 'Y', False: ''})
+
+                # column_order = ['track_id', 'gender', 'age', 'solution', 'direction', 'group', 'is_group', 'group_head_count', 'group_gender', 'group_with_youth', 'datetime', 'Camera', 'Shop' , 'img_path']
+                # self.df = self.df[column_order]
+
+                column_order = ['track_id', 'second_show', 'gender', 'age', 'staytime', 'solution', 'direction', 'group', 'is_group', 'group_head_count', 'group_gender', 'group_with_youth', 'datetime', 'Camera', 'Shop' , 'img_path']
+                self.df = self.df[column_order]
+                # output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_bast_text_filtered.csv")
+                # self.df_object.to_csv(output_file_path, index=False)
+            
+            print("\n------------------------------------------------")
+            print("Combined DataFrame: " + f"{self.processor_type}")
+            print(self.df.head(3))
+            print("\nTotal number of rows:", self.df.shape[0])
+
+            output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}.csv")
+            self.df.to_csv(output_file_path, index=False)
+
+            print(f"Combined DataFrame saved to: {output_file_path}")
+            
+            if self.processor_type == "base_text":
+                print("\n------------------------------------------------")
+                print("creating object reference")
+
+                self.df_object = self.df
+
+                self.df_object_reference = self.df.groupby('id').agg({
+                    # 'age': 'mean',
+                    'age': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+                    'gender': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+                }).reset_index()
+
+                self.df_object_reference['gender'] = self.df_object_reference['gender'].map(GENDER_MAP)
+                self.df_object_reference['age'] = self.df_object_reference['age'].map(AGE_MAP)
+
+                print("Combined DataFrame: " + f"{self.processor_type}")
+                print(self.df_object_reference.head(3))
+                print("\nTotal number of rows:", self.df_object_reference.shape[0])
+
+                output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}_object_reference.csv")
+                self.df_object_reference.to_csv(output_file_path, index=False)
+                
+            return True
+    
+    def output_process(self, start_time = 9, end_time = 20):
+        """
+        create all output files for camera data
+        """
+        print("Processing output for NexRetail camera data")
+
+        output_set = ["base_text", "entrance", "region_car", "region_table"]
+        # output_set = ["base_text"]
+
+        for output in output_set:
+            self.processor_type = output
+            self.daily_process()
