@@ -11,8 +11,8 @@ if __name__ == "__main__":
     start_time = time.time()
 
     # ------------ INPUT section ------------
-    inference_path = "csv/2024-11-02/"
-    date_stamp = "2024-11-02"
+    inference_path = "csv/2024-11-03/"
+    date_stamp = "2024-11-03"
     # ---------------------------------------
     processor = CameraDataProcessor(inference_path, date_stamp)
     processor.output_process()

@@ -330,7 +330,8 @@ class CameraDataProcessor:
                 self.df['group_with_youth'] = self.df.groupby('group')['age'].transform(lambda x: 'Y' if '0-15' in x.values else 'N')
                 # self.df['is_group'] = self.df.groupby('group').cumcount().apply(lambda x: 'Y' if x == 0 else '')
                 self.df['is_group'] = self.df.groupby('group').cumcount().apply(
-                    lambda x: 'Y' if x == 0 and self.df.loc[x, 'group_head_count'] > 1 else ''
+                    # lambda x: 'Y' if x == 0 and self.df.loc[x, 'group_head_count'] > 1 else ''
+                    lambda x: 'Y' if x == 0 else ''
                 )
                 self.df['is_group'] = ''
                 self.df.loc[self.df.groupby('group').head(1).index, 'is_group'] = \
