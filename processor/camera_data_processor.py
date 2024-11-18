@@ -286,12 +286,23 @@ class CameraDataProcessor:
                 # calculate staytime
                 self.df_object = self.df_object[self.df_object['id'].isin(self.df['track_id'])]
 
+                self.df_object['datetime'] = pd.to_datetime(self.df_object['datetime'])
+                self.df_object['hour'] = self.df_object['datetime'].dt.floor('h')
+                self.df_object = self.df_object.groupby(['id', 'hour']).filter(lambda x: len(x) >= 20)
+                # self.df_object['h_mark'] = self.df_object.groupby(['id', 'hour'])['id'].transform('size').apply(lambda x: 'Y' if x < 20 else 'N')
+
                 self.df['staytime'] = ''
 
                 end_of_day = datetime.strptime(self.base_day_stamp, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
                 rows_to_remove = []
 
+                # self.df['max_datetime'] = None
+                # self.df['min_datetime'] = None
+                # self.df['is_remove'] = ''
+
                 for track_id, group in self.df.groupby('track_id'):
+                    # if track_id == 200:
+                    #     print(group)
                     for _, row in group.iterrows():
                         start_time = row['datetime']
                         next_index = group.index.get_loc(row.name) + 1
@@ -300,15 +311,27 @@ class CameraDataProcessor:
                         else:
                             end_time = end_of_day
 
-                        filtered_df = self.df_object[(self.df_object['id'] == track_id) & (self.df_object['datetime'] >= start_time) & (self.df_object['datetime'] <= end_time)]
+                        filtered_df = self.df_object[(self.df_object['id'] == track_id) & 
+                                                     (self.df_object['datetime'] >= start_time) & 
+                                                     (self.df_object['datetime'] <= end_time)]
+
+                        # if track_id == 200:
+                        #     print("group: " + str(len(group)))
+                        #     print("start time: " + str(start_time))
+                        #     print("end time: " + str(end_time))
+                        #     print(filtered_df)
                         
                         max_datetime = filtered_df['datetime'].max() if not filtered_df.empty else None
                         min_datetime = filtered_df['datetime'].min() if not filtered_df.empty else None
+
+                        # self.df.at[row.name, 'max_datetime'] = max_datetime
+                        # self.df.at[row.name, 'min_datetime'] = min_datetime
 
                         if max_datetime and min_datetime:
                             time_difference = max_datetime - min_datetime
                             if time_difference < timedelta(minutes=5):
                                 rows_to_remove.append(row.name)
+                                # self.df.at[row.name, 'is_remove'] = 'Y'
                                 continue
 
                             hours = time_difference.seconds // 3600
@@ -319,6 +342,8 @@ class CameraDataProcessor:
                             self.df.at[row.name, 'staytime'] = formatted_time_difference
 
                 self.df.drop(index=rows_to_remove, inplace=True)
+                # self.df.dropna(subset=['staytime'], inplace=True)
+                self.df = self.df[self.df['staytime'] != ""]
 
                 self.df['second_show'] = ''
                 mask = (self.df.groupby('track_id')['track_id'].transform('size') > 1) & (self.df.groupby('track_id').cumcount() != 0)
@@ -342,15 +367,15 @@ class CameraDataProcessor:
 
                 column_order = ['track_id', 'second_show', 'gender', 'age', 'staytime', 'solution', 'direction', 'group', 'is_group', 'group_head_count', 'group_gender', 'group_with_youth', 'datetime', 'Camera', 'Shop' , 'img_path']
                 self.df = self.df[column_order]
-                # output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_bast_text_filtered.csv")
-                # self.df_object.to_csv(output_file_path, index=False)
+                output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_bast_text_filtered.csv")
+                self.df_object.to_csv(output_file_path, index=False)
             
             print("\n------------------------------------------------")
             print("Combined DataFrame: " + f"{self.processor_type}")
             print(self.df.head(3))
             print("\nTotal number of rows:", self.df.shape[0])
 
-            if self.processor_type == "base_text":
+            if self.processor_type == "aaa":
                 pass
             else:
                 output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}.csv")
@@ -377,8 +402,8 @@ class CameraDataProcessor:
                 print(self.df_object_reference.head(3))
                 print("\nTotal number of rows:", self.df_object_reference.shape[0])
 
-                # output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}_object_reference.csv")
-                # self.df_object_reference.to_csv(output_file_path, index=False)
+                output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}_object_reference.csv")
+                self.df_object_reference.to_csv(output_file_path, index=False)
                 
             return True
     
@@ -389,7 +414,7 @@ class CameraDataProcessor:
         print("Processing output for NexRetail camera data")
 
         output_set = ["base_text", "entrance", "region_car", "region_table"]
-        # output_set = ["base_text"]
+        # output_set = ["base_text", "entrance"]
 
         for output in output_set:
             self.processor_type = output
