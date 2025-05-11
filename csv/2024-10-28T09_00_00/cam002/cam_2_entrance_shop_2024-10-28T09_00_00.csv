@@ -1,5 +1,0 @@
-Shop,Camera,Year,Month,Day,track_id,gender,age,baseline,datetime,direction,group,img_path
-Taiwan,cam002,2024,10,28,218,Male,1.0,entrance_id,2024-10-28 09:01:59,1.0,0,bus/2024-10-28T09:00:00.099900/cam002/person/tid218_fid1200_M_31-45.jpg
-Taiwan,cam002,2024,10,28,367,Male,2.0,entrance_id,2024-10-28 09:11:24,1.0,1,bus/2024-10-28T09:00:00.099900/cam002/person/tid367_fid6845_F_31-45.jpg
-Taiwan,cam002,2024,10,28,2858,Male,1.0,entrance_id,2024-10-28 09:49:19,1.0,2,bus/2024-10-28T09:00:00.099900/cam002/person/tid2860_fid29595_M_61-.jpg
-Taiwan,cam002,2024,10,28,24,Female,1.0,entrance_id,2024-10-28 09:55:06,1.0,3,bus/2024-10-28T09:00:00.099900/cam002/person/tid3604_fid33065_F_31-45.jpg

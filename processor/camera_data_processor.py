@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import json
 import os
 import pandas as pd
 
@@ -42,6 +43,7 @@ SOLUTION = {
     19: "Negotiation_table_10",
     20: "Negotiation_table_11",
     21: "SIENTA",
+    22: "entrance_shop2",
 }
 
 GENDER_MAP = {
@@ -104,8 +106,11 @@ class CameraDataProcessor:
 
         # Combine all DataFrames
         self.df = pd.concat(dfs_text, ignore_index=True).sort_values(by=['id', 'camera', 'frame_idx']).reset_index(drop=True)
-        self.df['datetime'] = self.df.apply(
-            lambda row: self.current_time + timedelta(seconds=row['frame_idx'] / 10), axis=1
+        # self.df['datetime'] = self.df.apply(
+        #     lambda row: self.current_time + timedelta(seconds=row['frame_idx'] / 10), axis=1
+        # )
+        self.df['datetime'] = self.df['frame_idx'].apply(
+            lambda frame_idx: self.current_time + timedelta(seconds=frame_idx / 10)
         )
 
         # print("\n")
@@ -299,10 +304,7 @@ class CameraDataProcessor:
                 # self.df['max_datetime'] = None
                 # self.df['min_datetime'] = None
                 # self.df['is_remove'] = ''
-
                 for track_id, group in self.df.groupby('track_id'):
-                    # if track_id == 200:
-                    #     print(group)
                     for _, row in group.iterrows():
                         start_time = row['datetime']
                         next_index = group.index.get_loc(row.name) + 1
@@ -329,6 +331,7 @@ class CameraDataProcessor:
 
                         if max_datetime and min_datetime:
                             time_difference = max_datetime - min_datetime
+                            
                             if time_difference < timedelta(minutes=5):
                                 rows_to_remove.append(row.name)
                                 # self.df.at[row.name, 'is_remove'] = 'Y'
@@ -342,7 +345,6 @@ class CameraDataProcessor:
                             self.df.at[row.name, 'staytime'] = formatted_time_difference
 
                 self.df.drop(index=rows_to_remove, inplace=True)
-                # self.df.dropna(subset=['staytime'], inplace=True)
                 self.df = self.df[self.df['staytime'] != ""]
 
                 self.df['second_show'] = ''
@@ -351,7 +353,8 @@ class CameraDataProcessor:
 
                 self.df['group_head_count'] = self.df.groupby('group')['group'].transform('size')
                 # self.df['track_id_count'] = self.df.groupby('track_id')['track_id'].transform('size')
-                self.df['group_gender'] = self.df.groupby('group')['gender'].transform(lambda x: ', '.join(x))
+                # self.df['group_gender'] = self.df.groupby('group')['gender'].transform(lambda x: ', '.join(x))
+                self.df['group_gender'] = self.df.groupby('group')['gender'].transform(lambda x: "")
                 self.df['group_with_youth'] = self.df.groupby('group')['age'].transform(lambda x: 'Y' if '0-15' in x.values else 'N')
                 # self.df['is_group'] = self.df.groupby('group').cumcount().apply(lambda x: 'Y' if x == 0 else '')
                 self.df['is_group'] = self.df.groupby('group').cumcount().apply(
@@ -377,15 +380,30 @@ class CameraDataProcessor:
 
             if self.processor_type == "aaa":
                 pass
-            else:
-                output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}.csv")
-                self.df.to_csv(output_file_path, index=False)
-
-                print(f"Combined DataFrame saved to: {output_file_path}")
             
-            if self.processor_type == "base_text":
+            elif self.processor_type == "base_text":
                 print("\n------------------------------------------------")
                 print("creating object reference")
+
+                # load preid
+                json_path = f"csv/{self.base_day_stamp}/{self.base_day_stamp}T{self.end_time:02d}_00_00/system.json"
+                with open(json_path) as f:
+                    for line in f:
+                        data = json.loads(line)
+                
+                system_json = data
+
+                print("------------------------------------------------")
+                if system_json.get('remap_reid', False): # 確認系統檔中reid的資訊
+                    print("processing preid")
+                    self.df['raw_id'] = self.df['id'] # 先將track_id 存起來
+                    self.df['id'] = self.df['id'].astype(str) # 從json讀來的檔中key會變字串，因此先轉字串
+                    # 如果 remap表中有該track_id，就重新remap id(pre_id), 沒有則保持元id
+                    self.df['id'] = self.df['id'].apply(lambda x: system_json['remap_reid'].get(x, {"pre_id": x})["pre_id"])
+                    self.df['id'] = self.df['id'].astype(int)# 轉回int
+                else:
+                    print("processing preid error")
+                print("------------------------------------------------")
 
                 self.df_object = self.df
 
@@ -400,21 +418,31 @@ class CameraDataProcessor:
 
                 print("Combined DataFrame: " + f"{self.processor_type}")
                 print(self.df_object_reference.head(3))
-                print("\nTotal number of rows:", self.df_object_reference.shape[0])
+                print("\nTotal row number of object reference:", self.df_object_reference.shape[0])
 
                 output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}_object_reference.csv")
                 self.df_object_reference.to_csv(output_file_path, index=False)
+                print(f"Combined DataFrame saved to: {output_file_path}")
+
+                output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}.csv")
+                self.df.to_csv(output_file_path, index=False)
+                print(f"Combined DataFrame saved to: {output_file_path}")
+            
+            else:
+                output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}.csv")
+                self.df.to_csv(output_file_path, index=False)
+                print(f"Combined DataFrame saved to: {output_file_path}")
                 
             return True
     
-    def output_process(self, start_time = 9, end_time = 20):
+    def output_process(self):
         """
         create all output files for camera data
         """
         print("Processing output for NexRetail camera data")
+        print("------------------------------------------------\n")
 
         output_set = ["base_text", "entrance", "region_car", "region_table"]
-        # output_set = ["base_text", "entrance"]
 
         for output in output_set:
             self.processor_type = output

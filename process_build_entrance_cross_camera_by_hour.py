@@ -6,7 +6,7 @@ time_stamp = "19_00_00"
 base_time_stamp = date_stamp + "T" + time_stamp
 selected_solution_name = "entrance"
 
-CAMERA = ["cam002", "cam003", "cam004", "cam005", "cam006"]\
+CAMERA = ["cam002", "cam003", "cam004", "cam005", "cam006"]
 
 SOLUTION = {
     1: "entrance_shop",
