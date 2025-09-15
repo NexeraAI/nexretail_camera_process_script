@@ -48,38 +48,102 @@ def car_plate_processor(path: str) -> pd.DataFrame:
 
     return df_car_plate
 
+def upload(json_payload, url="https://nexretail-camera-station-v2.de.r.appspot.com/data_storage/car_plate_data_upload/"):
+    print("uploading car plate data...")
+    headers = {'Content-Type': 'application/json'}
+    response = requests.post(url, data=json_payload, headers=headers)
+
+    if response.status_code == 201:
+        print("\nData uploaded successfully.")
+        print("Response message:", response.json().get("message", "No message in response"))
+    else:
+        print(f"\nFailed to upload data. Status code: {response.status_code}")
+        print("Response message:", response.json().get("message", "No message in response"))
+
+def process_car_plate_data(date: str, location: str) -> bool:
+    try:
+        # Load configuration from a JSON file
+        config_path = "config.json"
+        
+        with open(config_path, "r") as config_file:
+            config = json.load(config_file)
+
+        location_id = config["locations"][location]["LOCATION"]
+        
+        folder_path = f"csv/{location}/{date}"
+
+        all_files = [f for f in os.listdir(folder_path) if f.endswith('.csv')]
+
+        for file in all_files:
+            file_path = os.path.join(folder_path, file)
+            df = car_plate_processor(file_path)
+
+            filename_without_ext = os.path.splitext(file)[0]
+            date_part = filename_without_ext.split('_')[3].split('T')[0]
+
+            new_filename = f"{location}車牌_{date_part}.csv"
+            new_file_path = os.path.join("csv/car_plate/output", new_filename)
+
+            df.to_csv(new_file_path, index=False)
+
+            column_order = ['car_plate', 'staytime', 'start_time']
+            df = df[column_order]
+            df.rename(columns={'start_time': 'datetime'}, inplace=True)
+            df['location'] = location_id
+            json_payload = df.to_json(orient="records")
+            # print(json_payload)
+
+            upload(json_payload)
+
+        print("")
+        print(f"--------------------End Json Payload { date } --------------------")
+
+        return True
+        
+    except Exception as e:
+        print(f"Error processing car plate data: {e}")
+        return False
+
 if __name__ == "__main__":
-    folder_path = "csv/car_plate"
+    date = "2025-05-14"
+    # location = "新莊"
+    # location = "新竹"
+    # location = "西台南"
+    # location = "鳳山"
+    # location = "中台中"
+    location = "新店"
+    
+    process_car_plate_data(date, location)
 
-    all_files = [f for f in os.listdir(folder_path) if f.endswith('.csv')]
+    # folder_path = f"csv/{location}/{date}"
 
-    for file in all_files:
-        file_path = os.path.join(folder_path, file)
-        df = car_plate_processor(file_path)
+    # config_path = "config.json"
+        
+    # with open(config_path, "r") as config_file:
+    #     config = json.load(config_file)
 
-        filename_without_ext = os.path.splitext(file)[0]
-        date_part = filename_without_ext.split('_')[3].split('T')[0]
+    # location_id = config["locations"][location]["LOCATION"]
 
-        new_filename = f"鳳山車牌_{date_part}.csv"
-        new_file_path = os.path.join(folder_path, "output", new_filename)
+    # all_files = [f for f in os.listdir(folder_path) if f.endswith('.csv')]
 
-        df.to_csv(new_file_path, index=False)
+    # for file in all_files:
+    #     file_path = os.path.join(folder_path, file)
+    #     df = car_plate_processor(file_path)
 
-        column_order = ['car_plate', 'staytime', 'start_time']
-        df = df[column_order]
-        df.rename(columns={'start_time': 'datetime'}, inplace=True)
-        df['location'] = 4
-        json_payload = df.to_json(orient="records")
-        print(json_payload)
+    #     filename_without_ext = os.path.splitext(file)[0]
+    #     date_part = filename_without_ext.split('_')[3].split('T')[0]
 
-        # Upload the JSON payload to the server
-        url = "https://nexretail-camera-station-v2.de.r.appspot.com/data_storage/car_plate_data_upload/"
-        headers = {'Content-Type': 'application/json'}
-        response = requests.post(url, data=json_payload, headers=headers)
+    #     new_filename = f"{location}車牌_{date_part}.csv"
+    #     new_file_path = os.path.join("csv/car_plate/output", new_filename)
 
-        if response.status_code == 201:
-            print("\nData uploaded successfully.")
-            print("Response message:", response.json().get("message", "No message in response"))
-        else:
-            print(f"\nFailed to upload data. Status code: {response.status_code}")
-            print("Response message:", response.json().get("message", "No message in response"))
+    #     df.to_csv(new_file_path, index=False)
+
+    #     column_order = ['car_plate', 'staytime', 'start_time']
+    #     df = df[column_order]
+    #     df.rename(columns={'start_time': 'datetime'}, inplace=True)
+    #     df['location'] = location_id
+    #     json_payload = df.to_json(orient="records")
+    #     print(json_payload)
+
+    #     upload(json_payload)
+

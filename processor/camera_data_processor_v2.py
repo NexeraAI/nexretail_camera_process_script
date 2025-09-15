@@ -2,70 +2,9 @@ from datetime import datetime, timedelta
 import json
 import os
 import pandas as pd
-
-# 新莊
-# CAMERA = ["cam001", "cam002", "cam003", "cam004", "cam005", "cam006"]
-# LOCATION = 1
-
-# entrance = [1]
-# region_car = [4, 5, 7, 11, 12, 13, 17, 18, 21]
-# region_table = [2, 3, 6, 8, 9, 10, 14, 15, 16, 19, 20]
-
-# 新竹
-# CAMERA = ["cam001", "cam002", "cam003", "cam004", "cam006", "cam007"]
-# LOCATION = 2
-
-# entrance = [1]
-# region_car = [24, 4, 5, 7, 11, 13, 17]
-# region_table = [2, 3, 23, 8, 9, 10, 14, 15]
-
-# 西台南
-# CAMERA = ["cam001", "cam002", "cam003", "cam004", "cam005", "cam006"]
-# LOCATION = 3
-
-# entrance = [1]
-# region_car = [5, 24, 4, 7, 11, 25, 13, 21, 18]
-# region_table = [2, 3, 23, 8, 9, 10, 14, 15]
-
-# 鳳山
-CAMERA = ["cam001", "cam002", "cam003", "cam004", "cam005", "cam006"]
-LOCATION = 4
-
-entrance = [1]
-region_car = [4, 7, 11, 25, 13, 17, 26, 27]
-region_table = [2, 3, 23, 8, 9, 10, 14]
-
-# 中台中
-# CAMERA = ["cam001", "cam002", "cam003", "cam004", "cam005", "cam006"]
-# LOCATION = 5
-
-# entrance = [1]
-# region_car = [28, 4, 5, 7, 13, 17, 26, 11]
-# region_table = [2, 23, 8, 9, 10, 14, 15]
-
-# 新店
-# CAMERA = ["cam001", "cam002", "cam003", "cam004", "cam005", "cam006"]
-# LOCATION = 6
-
-# entrance = [1]
-# region_car = [5, 4, 7, 11, 18, 29, 28, 13, 21]
-# region_table = [2, 3, 23, 8, 9, 10, 14]
-
+import requests
 
 OUTPUT_SET = ["entrance", "region_car", "region_table"]
-# OUTPUT_SET = ["entrance"]
-
-solution_sets = {
-    "entrance": entrance,
-    "region_car": region_car,
-    "region_table": region_table
-}
-
-solution_data_processor = {
-    "entrance": [],
-    "region_car": [],
-    "region_table": []
-}
 
 SOLUTION = {
     1: "entrance_shop",
@@ -97,6 +36,10 @@ SOLUTION = {
     27: "SIENTA3",
     28: "COROLLA_CROSS",
     29: "ALTIS2",
+    30: "smoking_room1",
+    31: "region2",
+    32: "smoking_room2",
+    33: "region3",
 }
 
 GENDER_MAP = {
@@ -112,7 +55,19 @@ AGE_MAP = {
 }
 
 class CameraDataProcessor:
-    def __init__(self, base_directory, base_day_stamp, processor_type="default", start_time = 9, end_time = 20, output_base_direction = "output"):
+    def __init__(self, camera, location_id, entrance, region_car, region_table, base_directory, base_day_stamp, processor_type="default", start_time = 9, end_time = 20, output_base_direction = "output"):
+        self.camera = camera
+        self.location_id = location_id
+        self.entrance = entrance
+        self.region_car = region_car
+        self.region_table = region_table
+
+        self.solution_sets = {
+            "entrance": self.entrance,
+            "region_car": self.region_car,
+            "region_table": self.region_table
+        }
+        
         self.base_directory = base_directory
         self.file_directory = ""
 
@@ -309,7 +264,7 @@ class CameraDataProcessor:
             self.df["entrance"]["Total Male"] = self.df["entrance"]["M0-15"] + self.df["entrance"]["M16-30"] + self.df["entrance"]["M31-45"] + self.df["entrance"]["M46-60"]
             self.df["entrance"]["Total Female"] =self.df["entrance"]["F0-15"] + self.df["entrance"]["F16-30"] + self.df["entrance"]["F31-45"] + self.df["entrance"]["F46-60"]
 
-            self.df["entrance"]['location'] = LOCATION
+            self.df["entrance"]['location'] = self.location_id
 
             column_order = ['track_id', 'second_show', 'gender', 'age', 'staytime', 'solution', 'direction', 'region', 'group', 'is_group', 'group_head_count', 'group_gender', 'group_with_youth', 'datetime', 'Camera', 'Shop', 'M0-15', 'M16-30', 'M31-45', 'M46-60', 'F0-15', 'F16-30', 'F31-45', 'F46-60', 'Total Male + Female', 'Total Male', 'Total Female', 'location']
             self.df["entrance"] = self.df["entrance"][column_order]
@@ -333,7 +288,8 @@ class CameraDataProcessor:
             
             self.df_output[self.processor_type] = pd.concat([self.df_output[self.processor_type], self.df[self.processor_type]], ignore_index=True).sort_values(by=['datetime']).reset_index(drop=True)
             
-            column_order = ['track_id', 'gender', 'age', 'solution', 'actions', 'staytime', 'datetime', 'Camera', 'Shop']
+            column_order = ['track_id', 'gender', 'age', 'solution', 'actions', 'img_path', 'staytime', 'datetime', 'Camera', 'Shop']
+
             self.df_output[self.processor_type] = self.df_output[self.processor_type][column_order]
             
             print(f"Total row number of df_output({ self.processor_type }): {self.df_output[self.processor_type].shape[0]}")
@@ -361,6 +317,7 @@ class CameraDataProcessor:
         process saving task for general processor type
         """
         output_file_path = os.path.join(self.output_directory, f"{self.base_day_stamp}_combined_{self.processor_type}.csv")
+
         self.df_output[self.processor_type].to_csv(output_file_path, index=False)
         print(f"Combined df({ self.processor_type }) saved to: {output_file_path}")
 
@@ -382,6 +339,19 @@ class CameraDataProcessor:
             self.df_output["entrance"].rename(columns={"Total Female": "total_female"}, inplace=True)
             json_payload = self.df_output["entrance"].to_json(orient="records")
             print(json_payload)
+
+            # Upload the JSON payload to the server
+            url = "https://nexretail-camera-station-v2.de.r.appspot.com/data_storage/upload/"
+            headers = {'Content-Type': 'application/json'}
+            response = requests.post(url, data=json_payload, headers=headers)
+
+            if response.status_code == 201:
+                print("\nData uploaded successfully.")
+                print("Response message:", response.json().get("message", "No message in response"))
+            else:
+                print(f"\nFailed to upload data. Status code: {response.status_code}")
+                print("Response message:", response.json().get("message", "No message in response"))
+            
             print("")
             print(f"--------------------End Json Payload { self.base_day_stamp } --------------------")
 
@@ -391,7 +361,7 @@ class CameraDataProcessor:
         df_cameras_list = []
         df_cameras = pd.DataFrame()
         
-        for camera in CAMERA:
+        for camera in self.camera:
             base_txt_path = os.path.join(self.file_directory, f"{camera}.txt")
 
             try:
@@ -441,11 +411,11 @@ class CameraDataProcessor:
         df_list = []
         dfs = pd.DataFrame()
         
-        for camera in CAMERA:
+        for camera in self.camera:
             # camera_number = int(camera[3:])
             # modified_camera = f"cam_{camera_number}"
 
-            for solution_id in solution_sets["entrance"]:
+            for solution_id in self.solution_sets["entrance"]:
                 solution_name = SOLUTION[solution_id]
                 csv_filename = f"{camera}_{solution_name}_{self.base_time_stamp}.csv"
                 csv_path = os.path.join(self.file_directory, camera, csv_filename)
@@ -474,11 +444,11 @@ class CameraDataProcessor:
         df_list = []
         dfs = pd.DataFrame()
         
-        for camera in CAMERA:
+        for camera in self.camera:
             # camera_number = int(camera[3:])
             # modified_camera = f"cam_{camera_number}"
 
-            for solution_id in solution_sets[self.processor_type]:
+            for solution_id in self.solution_sets[self.processor_type]:
                 solution_name = SOLUTION[solution_id]
                 csv_filename = f"{camera}_{solution_name}_{self.base_time_stamp}.csv"
                 csv_path = os.path.join(self.file_directory, camera, csv_filename)
@@ -590,6 +560,6 @@ class CameraDataProcessor:
         # processing base_text and create reference
         self.daily_process()
 
-        print("\n------------------------------------------------")
         print("run information")
         print(f"inference_gap: {self.inference_gap}")
+        print("\n------------------------------------------------")

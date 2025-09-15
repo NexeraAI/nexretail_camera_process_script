@@ -3,6 +3,14 @@ import pandas as pd
 from datetime import datetime, timedelta
 import requests
 
+
+
+import re
+from pathlib import Path
+import numpy as np
+import os
+from PIL import Image
+
 AGE_MAP = {
     0: "0-15",
     1: "16-30",
@@ -127,11 +135,11 @@ def process_camera_data(file_path: str) -> pd.DataFrame:
     # df['actions'] = df['actions'].apply(eval)  # Convert string representation of list to actual list
     rows_to_remove = set()
     for i in range(len(df)):
-        print(f"i: {i}")
+        # print(f"i: {i}")
         current_row = df.iloc[i]
         
         if not any(action in current_row['actions'] for action in ["document", "category", "catalog", "other"]):
-            print(f"no action, removing row {current_row.name}")
+            # print(f"no action, removing row {current_row.name}")
             rows_to_remove.add(current_row.name)
         else:
             # Count the number of "document" and "catalog" actions
@@ -146,69 +154,191 @@ def process_camera_data(file_path: str) -> pd.DataFrame:
     df['action_summary'] = df['actions'].apply(summarize_action)
     df['table_head_count'] = df['combined_gender'].apply(calculate_table_head_count)
 
-    column_order = ['track_id', 'table_head_count', 'combined_gender', 'gender', 'combined_age', 'age', 'solution', 'action_summary', 'actions', 'staytime', 'datetime', 'Camera', 'Shop']
+    rows_to_remove = set()
+    for i in range(len(df)):
+        current_row = df.iloc[i]
+
+        if current_row['table_head_count'] == 1:
+            rows_to_remove.add(current_row.name)
+    
+    df.drop(index=rows_to_remove, inplace=True)
+
+    column_order = ['track_id', 'table_head_count', 'combined_gender', 'gender', 'combined_age', 'age', 'solution', 'action_summary', 'actions', 'img_path', 'staytime', 'datetime', 'Camera', 'Shop']
     df = df[column_order]
 
     df = df.sort_values(by=['solution', 'datetime'])
     
     return df
 
-if __name__ == "__main__":
-    date = "2025-05-09"
-    # location = "新莊"
-    # location = "新竹"
-    # location = "西台南"
-    location = "鳳山"
-    # location = "中台中"
-    # location = "新店"
+# 定義從 path 中提取 fid 數字的函數
+def get_fid(path):
+    match = re.search(r'fid(\d+)', path)
+    return int(match.group(1)) if match else float('inf')  # 沒有 fid 就排在最後
+
+def save_gif_from_imglist(imgs_list, save_dir, target_dir):
+    if len(imgs_list)<2:
+        return imgs_list
+
+    # 讀取所有圖片
+    sort_img = sorted(imgs_list, key=get_fid)
+    images = []
+    for f in sort_img:
+        img = Image.open(os.path.join(save_dir, f))
+        images.append(img.copy())
+        img.close()
+
+    # 根據 fid 進行排序
+    imgs_size = np.array([list(img.size) for img in images])
+    resize_size = tuple(imgs_size[0]) if np.all(imgs_size==imgs_size[0]) else (128,256)
+    resized_images = [img.resize(resize_size) for img in images]
+
+    save_path = Path(imgs_list[0]).with_suffix('.gif')
+    gif_dir = save_path.parent.parent / "gif"
     
-    folder_path = f"output/{location}/{date}"
+    (Path(save_dir)/gif_dir).mkdir(parents=True, exist_ok=True)
+    save_path = gif_dir / save_path.name
+    # 儲存成 GIF
 
-    file_path = f"{folder_path}/{date}_combined_region_table.csv"
-    processed_df = process_camera_data(file_path)
-    
-    # Print the processed DataFrame
-    # print(processed_df)
+    # 降低顏色數
+    # quantized_images = [img.quantize(colors=64) for img in resized_images]
 
-    # processed_df.to_csv(f"{folder_path}/{date}_combined_region_table_filtered02_by_endtime_overlap.csv", index=False)
-    # processed_df.to_csv(f"{folder_path}/{date}_combined_region_table_filtered03_by_action.csv", index=False)
+    # 確保模式
+    final_images = [img.convert('P') for img in resized_images]
 
-    if location == "新莊":
-        processed_df["location"] = 1
+    # 儲存
+    final_images[0].save(
+        os.path.join(save_dir, str(save_path)),
+        save_all=True,
+        append_images=final_images[1:],
+        duration=300,
+        loop=0,
+        optimize=True
+    )
+    return str(save_path)
 
-    elif location == "新竹":
-        processed_df["location"] = 2
-    
-    elif location == "西台南":
-        processed_df["location"] = 3
-
-    elif location == "鳳山":
-        processed_df["location"] = 4
-    
-    elif location == "中台中":
-        processed_df["location"] = 5
-    
-    elif location == "新店":
-        processed_df["location"] = 6
-
-    processed_df['datetime'] = processed_df['datetime'].apply(lambda x: str(x))
-
-    json_payload = processed_df.to_json(orient="records")
-    print(json_payload)
-
-    # Upload the JSON payload to the server
-    url = "https://nexretail-camera-station-v2.de.r.appspot.com/data_storage/action_data_upload/"
+def upload(json_payload, url="https://nexretail-camera-station-v2.de.r.appspot.com/data_storage/action_data_upload/"):
+    print("uploading action data...")
     headers = {'Content-Type': 'application/json'}
     response = requests.post(url, data=json_payload, headers=headers)
 
     if response.status_code == 201:
         print("\nData uploaded successfully.")
         print("Response message:", response.json().get("message", "No message in response"))
+
+        return response.json().get("action_data_id")
     else:
         print(f"\nFailed to upload data. Status code: {response.status_code}")
         print("Response message:", response.json().get("message", "No message in response"))
 
-    print("")
-    print("rows: ", len(processed_df))
-    print(f"--------------------End Json Payload { date } --------------------")
-    processed_df.to_csv(f"{folder_path}/{date}_combined_region_table_filtered.csv", index=False)
+def process_action_data(date: str, location: str) -> bool:
+    try:
+        # Load configuration from a JSON file
+        config_path = "config.json"
+
+        with open(config_path, "r") as config_file:
+            config = json.load(config_file)
+
+        location_id = config["locations"][location]["LOCATION"]
+
+        folder_path = f"output/{location}/{date}"
+        file_path = f"{folder_path}/{date}_combined_region_table.csv"
+
+        processed_df = process_camera_data(file_path)
+        processed_df["location"] = location_id
+        processed_df['datetime'] = processed_df['datetime'].apply(lambda x: str(x))
+        processed_df["actions"] = ""
+
+        processed_df["gif_path"] = ""
+        gif_folder = os.path.join(folder_path, "gif")
+        os.makedirs(gif_folder, exist_ok=True)
+
+        for idx, row in processed_df.iterrows():
+            this_datetime = pd.to_datetime(row['datetime'])
+            this_datetime = this_datetime.strftime("%Y-%m-%dT%H_00_00")
+
+            processed_df.loc[idx, "gif_path"] = save_gif_from_imglist(eval(row['img_path']), f"csv/{location}/{date}/{this_datetime}", f"csv/{location}/{date}/gif")
+
+        processed_df.to_csv(f"{folder_path}/{date}_combined_region_table_filtered.csv", index=False)
+
+        processed_df["img_path"] = ""
+        # processed_df["gif_path"] = ""
+        json_payload = processed_df.to_json(orient="records")
+        print(json_payload)
+
+        # ----- batchupload -----
+        # upload(json_payload)
+
+        # ----- single upload with image -----
+        base_directory = f"csv/{location}/{date}/"
+        folder_path = f"output/{location}/{date}/"
+
+        for idx, row in processed_df.iterrows():
+            print("")
+            print("---------------------------------------------------------------")
+            row_df = pd.DataFrame([row])
+            row_payload = row_df.to_json(orient="records")
+            print(f"Uploading row {idx + 1}/{len(processed_df)}")
+            print(row_payload)
+            action_data_id = upload(row_payload)
+
+            this_datetime = pd.to_datetime(row['datetime'])
+            formatted_datetime = this_datetime.strftime("%Y-%m-%dT%H_00_00")
+
+            image_upload_url = f"https://nexretail-camera-station-v2.de.r.appspot.com/data_storage/action_data_image_upload/{action_data_id}/"
+            with open(f"{base_directory}{formatted_datetime}/{row['gif_path']}", 'rb') as img_file:
+                files = {'image': (os.path.basename(f"{base_directory}{formatted_datetime}/{row['gif_path']}"), img_file, 'image/jpeg')}
+                response = requests.post(image_upload_url, files=files)
+                
+                if response.status_code == 201:
+                    print(f"Image uploaded successfully for action_data_id {action_data_id}.")
+                else:
+                    print(f"Failed to upload image for action_data_id {action_data_id}. Status code: {response.status_code}")
+                    print("Response message:", response.text)
+
+        print("")
+        print("---------------------------------------------------------------")
+        print("rows: ", len(processed_df))
+        print(f"--------------------End Json Payload { date } --------------------")
+
+        return True
+
+    except Exception as e:
+        print(f"Error processing action data: {e}")
+        return False
+
+if __name__ == "__main__":
+    date = "2025-09-02"
+
+    # location = "新莊"
+    # location = "新竹"
+    location = "西台南"
+    # location = "鳳山"
+    # location = "中台中"
+    # location = "新店"
+
+    process_action_data(date, location)
+
+    # # Load configuration from a JSON file
+    # config_path = "config.json"
+    
+    # with open(config_path, "r") as config_file:
+    #     config = json.load(config_file)
+
+    # location_id = config["locations"][location]["LOCATION"]
+    
+    # folder_path = f"output/{location}/{date}"
+    # file_path = f"{folder_path}/{date}_combined_region_table.csv"
+    
+    # processed_df = process_camera_data(file_path)
+    # processed_df["location"] = location_id
+    # processed_df['datetime'] = processed_df['datetime'].apply(lambda x: str(x))
+
+    # json_payload = processed_df.to_json(orient="records")
+
+    # # Upload the JSON payload to the server
+    # upload(json_payload)
+
+    # print("")
+    # print("rows: ", len(processed_df))
+    # print(f"--------------------End Json Payload { date } --------------------")
+    # processed_df.to_csv(f"{folder_path}/{date}_combined_region_table_filtered.csv", index=False)
