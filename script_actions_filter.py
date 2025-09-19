@@ -78,6 +78,7 @@ def process_camera_data(file_path: str) -> pd.DataFrame:
 
     # df['age'] = df['age'].map(AGE_MAP)
 
+    # 進行桌組的組合 - 把以時間序列將不同的object組合成同桌，並把gender和age加入combined欄位，然後把重複的刪掉
     rows_to_remove = set()
     for solution, group in df.groupby('solution'):
         for i in range(len(group) - 1, 0, -1):
@@ -272,6 +273,7 @@ def process_action_data(date: str, location: str) -> bool:
         base_directory = f"csv/{location}/{date}/"
         folder_path = f"output/{location}/{date}/"
 
+        # 上傳單筆資料，取得資料id，並上傳對應圖片
         for idx, row in processed_df.iterrows():
             print("")
             print("---------------------------------------------------------------")
